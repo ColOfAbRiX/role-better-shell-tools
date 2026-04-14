@@ -1,0 +1,8 @@
+---
+- name: "Install More Tools"
+  ansible.builtin.include_tasks: extra-tools.yml
+  tags: wsl-environment
+
+- name: "Install EZA"
+  ansible.builtin.include_tasks: install-eza.yml
+  tags: wsl-environment

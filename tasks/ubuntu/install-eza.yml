@@ -1,0 +1,46 @@
+---
+
+- name: "Check if EZA is already installed"
+  ansible.builtin.stat:
+    path: /usr/bin/eza
+  register: eza_bin
+  tags: wsl-environment
+
+- name: "Install EZA"
+  when: not eza_bin.stat.exists
+  block:
+    - name: "Ensure keyrings directory exists"
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: "Download and dearmor GPG key"
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/eza-community/eza/main/deb.asc
+        dest: /tmp/eza-deb.asc
+        mode: "0644"
+
+    - name: "Dearmor GPG key"
+      ansible.builtin.shell: >
+        gpg --dearmor < /tmp/eza-deb.asc > /etc/apt/keyrings/gierens.gpg
+      args:
+        creates: /etc/apt/keyrings/gierens.gpg
+
+    - name: "Set permissions on GPG key"
+      ansible.builtin.file:
+        path: /etc/apt/keyrings/gierens.gpg
+        mode: "0644"
+
+    - name: "Add eza repository to sources list"
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main"
+        filename: gierens
+        state: present
+
+    - name: "Update cache and install EZA"
+      ansible.builtin.apt:
+        name: eza
+        state: present
+
+  tags: wsl-environment

@@ -1,0 +1,32 @@
+---
+- name: "Require Correct Linux Distribution"
+  assert:
+    that: ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('22.0.0', '>=')
+    msg: "This Linux distribution '{{ ansible_distribution }} {{ ansible_distribution_version }}' is not supported by the role."
+    quiet: true
+  tags: better-shell-tools
+
+- name: "Load Variables"
+  ansible.builtin.include_vars: "{{ lookup('first_found', files) }}"
+  vars:
+    files:
+      - "vars/vars-{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version }}.yml"
+      - "vars/vars-{{ ansible_distribution | lower }}.yml"
+      - "vars/vars-{{ ansible_os_family | lower }}.yml"
+  tags: better-shell-tools
+
+- name: "Run Environment Tasks"
+  ansible.builtin.include_tasks: "{{ lookup('first_found', files) }}"
+  vars:
+    files:
+      - "tasks/{{ ansible_distribution | lower }}-{{ ansible_distribution_major_version | lower }}/main.yml"
+      - "tasks/{{ ansible_distribution | lower }}/main.yml"
+      - "tasks/{{ ansible_os_family | lower }}/main.yml"
+  tags: better-shell-tools
+
+- name: Configure users
+  ansible.builtin.include_tasks: configure-user.yml
+  loop: "{{ better_shell_tools_users }}"
+  loop_control:
+    loop_var: tools_user
+  tags: better-shell-tools

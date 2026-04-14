@@ -1,0 +1,20 @@
+---
+- name: "Install Extra System Tools"
+  become: true
+  ansible.builtin.apt:
+    name: "{{ wsl_env_extra_tools }}"
+    state: present
+  tags: wsl-environment
+
+- name: "Install Extra Tools"
+  ansible.builtin.include_tasks: install-eza.yml
+  tags: wsl-environment
+
+- name: "Add Aliases to new tools"
+  template:
+    src: "wsl2/etc/bash_aliases.d/extra-tools.sh.j2"
+    dest: /etc/bash_aliases.d/extra-tools.sh
+    owner: root
+    group: root
+    mode: "0755"
+  tags: wsl-environment

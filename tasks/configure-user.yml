@@ -1,0 +1,14 @@
+---
+- name: "Get Sser Info '{{ tools_user.username }}'"
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ tools_user.username }}"
+  failed_when: false
+  when: tools_user.username is defined
+  tags: better-shell-tools
+
+- ansible.builtin.set_fact:
+    user_shell: "{{ ansible_facts.getent_passwd[tools_user.username][5] }}"
+    user_home: "{{ ansible_facts.getent_passwd[tools_user.username][4] }}"
+  when: ansible_facts.getent_passwd[tools_user.username] is defined
+  tags: better-shell-tools
