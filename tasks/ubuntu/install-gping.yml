@@ -1,0 +1,42 @@
+---
+- name: "Check if gping is already installed"
+  ansible.builtin.stat:
+    path: /usr/bin/gping
+  register: gping_bin
+  tags: better-shell-tools
+
+- name: "Install gping"
+  when: not gping_bin.stat.exists
+  block:
+    - name: "Gping: Download and dearmor GPG key"
+      ansible.builtin.get_url:
+        url: "https://azlux.fr/repo.gpg.key"
+        dest: "/tmp/azlux.gpg.key"
+        mode: "0644"
+
+    - name: "Gping: Install GPG key into keyrings"
+      become: true
+      ansible.builtin.shell:
+        cmd: "gpg --dearmor < /tmp/azlux.gpg.key | tee /usr/share/keyrings/azlux.gpg > /dev/null"
+        creates: "/usr/share/keyrings/azlux.gpg"
+
+    - name: "Gping: Add apt repository"
+      become: true
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/azlux.gpg] https://packages.azlux.fr/debian/ {{ ansible_distribution_release }} main"
+        filename: "azlux"
+        state: present
+
+    - name: "Gping: Install package"
+      become: true
+      ansible.builtin.apt:
+        name: gping
+        state: present
+        update_cache: yes
+
+    - name: "Gping: Cleanup temporary key file"
+      ansible.builtin.file:
+        path: "/tmp/azlux.gpg.key"
+        state: absent
+
+  tags: better-shell-tools

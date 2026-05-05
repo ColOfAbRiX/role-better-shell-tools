@@ -1,0 +1,39 @@
+---
+- name: "Check if ripgrep is already installed"
+  ansible.builtin.stat:
+    path: /usr/bin/rg
+  register: ripgrep_bin
+  tags: better-shell-tools
+
+- name: "Install ripgrep"
+  when: not ripgrep_bin.stat.exists
+  block:
+    - name: "Get latest ripgrep release metadata from GitHub"
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/BurntSushi/ripgrep/releases/latest"
+        return_content: yes
+      register: rg_release
+
+    - name: "Set version and download URL"
+      ansible.builtin.set_fact:
+        rg_version: "{{ rg_release.json.tag_name }}"
+        rg_deb_url: "{{ rg_release.json.assets | selectattr('name', 'search', 'amd64.deb') | map(attribute='browser_download_url') | first }}"
+
+    - name: "Download latest ripgrep .deb"
+      ansible.builtin.get_url:
+        url: "{{ rg_deb_url }}"
+        dest: "/tmp/ripgrep_latest_amd64.deb"
+        mode: "0644"
+
+    - name: "Install latest ripgrep"
+      become: true
+      ansible.builtin.apt:
+        deb: "/tmp/ripgrep_latest_amd64.deb"
+        state: present
+
+    - name: "Cleanup"
+      ansible.builtin.file:
+        path: "/tmp/ripgrep_latest_amd64.deb"
+        state: absent
+
+  tags: better-shell-tools

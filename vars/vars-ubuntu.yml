@@ -1,1 +1,6 @@
 ---
+wsl_env_extra_tools:
+ - btop
+ - fd-find
+ - duf
+ - bat

@@ -4,7 +4,7 @@
   ansible.builtin.stat:
     path: /usr/bin/eza
   register: eza_bin
-  tags: wsl-environment
+  tags: better-shell-tools
 
 - name: "Install EZA"
   when: not eza_bin.stat.exists
@@ -43,4 +43,4 @@
         name: eza
         state: present
 
-  tags: wsl-environment
+  tags: better-shell-tools

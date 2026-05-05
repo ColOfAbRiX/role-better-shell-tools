@@ -1,5 +1,5 @@
 ---
-- name: "Get Sser Info '{{ tools_user.username }}'"
+- name: "Get User Info '{{ tools_user.username }}'"
   ansible.builtin.getent:
     database: passwd
     key: "{{ tools_user.username }}"

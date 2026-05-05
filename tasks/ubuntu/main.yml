@@ -1,8 +1,12 @@
 ---
 - name: "Install More Tools"
   ansible.builtin.include_tasks: extra-tools.yml
-  tags: wsl-environment
+  tags: better-shell-tools
 
 - name: "Install EZA"
-  ansible.builtin.include_tasks: install-eza.yml
-  tags: wsl-environment
+  ansible.builtin.include_tasks: "install-{{ item }}.yml"
+  with_items:
+   - eza
+   - gping
+   - ripgrep
+  tags: better-shell-tools
