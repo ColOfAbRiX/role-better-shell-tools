@@ -1,0 +1,57 @@
+---
+- name: "Check if rip is already installed"
+  ansible.builtin.stat:
+    path: /usr/local/bin/rip
+  register: rip_bin
+  tags: better-shell-tools
+
+- name: "Install rip2"
+  when: not rip_bin.stat.exists
+  block:
+    - name: "Rip2: Install from GitHub releases (Ubuntu/Debian)"
+      when: ansible_distribution in ["Debian", "Ubuntu"]
+      block:
+        - name: "Rip2: Get latest release version"
+          ansible.builtin.uri:
+            url: https://api.github.com/repos/MilesCranmer/rip2/releases/latest
+            return_content: yes
+          register: rip2_release
+          changed_when: false
+
+        - name: "Rip2: Download rip2 binary"
+          become: true
+          ansible.builtin.get_url:
+            url: "https://github.com/MilesCranmer/rip2/releases/download/{{ rip2_release.json.tag_name }}/rip-Linux-x86_64-musl.tar.gz"
+            dest: "/tmp/rip2.tar.gz"
+            mode: "0644"
+
+        - name: "Rip2: Create temp extraction directory"
+          become: true
+          ansible.builtin.file:
+            path: /tmp/rip2-extract
+            state: directory
+            mode: "0755"
+
+        - name: "Rip2: Remove old rip binary if exists"
+          become: true
+          ansible.builtin.file:
+            path: /usr/local/bin/rip
+            state: absent
+
+        - name: "Rip2: Extract and install rip2"
+          become: true
+          ansible.builtin.shell:
+            cmd: "tar -xzf /tmp/rip2.tar.gz -C /tmp/rip2-extract && install /tmp/rip2-extract/rip /usr/local/bin/rip"
+
+        - name: "Rip2: Cleanup"
+          ansible.builtin.file:
+            path: "{{ cleanup_item }}"
+            state: absent
+          loop:
+            - "/tmp/rip2.tar.gz"
+            - "/tmp/rip2-extract"
+            - "/tmp/rip"
+          loop_control:
+            loop_var: cleanup_item
+
+  tags: better-shell-tools

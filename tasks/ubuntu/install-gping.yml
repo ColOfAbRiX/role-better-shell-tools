@@ -8,35 +8,61 @@
 - name: "Install gping"
   when: not gping_bin.stat.exists
   block:
-    - name: "Gping: Download and dearmor GPG key"
-      ansible.builtin.get_url:
-        url: "https://azlux.fr/repo.gpg.key"
-        dest: "/tmp/azlux.gpg.key"
-        mode: "0644"
+    - name: "Gping: Install from GitHub releases (Ubuntu/Debian)"
+      when: ansible_distribution in ["Debian", "Ubuntu"]
+      block:
+        - name: "Gping: Remove old azlux repository files if exist"
+          become: true
+          ansible.builtin.file:
+            path: "{{ azlux_item }}"
+            state: absent
+          loop:
+            - /etc/apt/sources.list.d/azlux.list
+            - /usr/share/keyrings/azlux.gpg
+          loop_control:
+            loop_var: azlux_item
 
-    - name: "Gping: Install GPG key into keyrings"
-      become: true
-      ansible.builtin.shell:
-        cmd: "gpg --dearmor < /tmp/azlux.gpg.key | tee /usr/share/keyrings/azlux.gpg > /dev/null"
-        creates: "/usr/share/keyrings/azlux.gpg"
+        - name: "Gping: Get latest release version"
+          ansible.builtin.uri:
+            url: https://api.github.com/repos/orf/gping/releases/latest
+            return_content: yes
+          register: gping_release
+          changed_when: false
 
-    - name: "Gping: Add apt repository"
-      become: true
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/azlux.gpg] https://packages.azlux.fr/debian/ {{ ansible_distribution_release }} main"
-        filename: "azlux"
-        state: present
+        - name: "Gping: Download gping binary"
+          become: true
+          ansible.builtin.get_url:
+            url: "https://github.com/orf/gping/releases/download/{{ gping_release.json.tag_name }}/gping-Linux-musl-x86_64.tar.gz"
+            dest: "/tmp/gping.tar.gz"
+            mode: "0644"
 
-    - name: "Gping: Install package"
-      become: true
-      ansible.builtin.apt:
-        name: gping
-        state: present
-        update_cache: yes
+        - name: "Gping: Create temp extraction directory"
+          become: true
+          ansible.builtin.file:
+            path: /tmp/gping-extract
+            state: directory
+            mode: "0755"
 
-    - name: "Gping: Cleanup temporary key file"
-      ansible.builtin.file:
-        path: "/tmp/azlux.gpg.key"
-        state: absent
+        - name: "Gping: Remove old gping binary if exists"
+          become: true
+          ansible.builtin.file:
+            path: /usr/local/bin/gping
+            state: absent
+
+        - name: "Gping: Extract and install gping"
+          become: true
+          ansible.builtin.shell:
+            cmd: "tar -xzf /tmp/gping.tar.gz -C /tmp/gping-extract && install /tmp/gping-extract/gping /usr/local/bin/gping"
+
+        - name: "Gping: Cleanup"
+          ansible.builtin.file:
+            path: "{{ cleanup_item }}"
+            state: absent
+          loop:
+            - "/tmp/gping.tar.gz"
+            - "/tmp/gping-extract"
+            - "/tmp/gping"
+          loop_control:
+            loop_var: cleanup_item
 
   tags: better-shell-tools
