@@ -1,0 +1,63 @@
+---
+- name: "Check if procs is already installed"
+  ansible.builtin.stat:
+    path: /usr/local/bin/procs
+  register: procs_bin
+  tags: better-shell-tools
+
+- name: "Install procs"
+  when: not procs_bin.stat.exists
+  block:
+    - name: "Procs: Install from GitHub releases (Ubuntu/Debian)"
+      when: ansible_distribution in ["Debian", "Ubuntu"]
+      block:
+        - name: "Procs: Get latest release version"
+          ansible.builtin.uri:
+            url: https://api.github.com/repos/dalance/procs/releases/latest
+            return_content: yes
+          register: procs_release
+          changed_when: false
+
+        - name: "Procs: Download procs binary"
+          become: true
+          ansible.builtin.get_url:
+            url: "https://github.com/dalance/procs/releases/download/{{ procs_release.json.tag_name }}/procs-{{ procs_release.json.tag_name }}-x86_64-linux.zip"
+            dest: "/tmp/procs.zip"
+            mode: "0644"
+
+        - name: "Procs: Install unzip if not present"
+          become: true
+          ansible.builtin.apt:
+            name: unzip
+            state: present
+
+        - name: "Procs: Create temp extraction directory"
+          become: true
+          ansible.builtin.file:
+            path: /tmp/procs-extract
+            state: directory
+            mode: "0755"
+
+        - name: "Procs: Remove old procs binary if exists"
+          become: true
+          ansible.builtin.file:
+            path: /usr/local/bin/procs
+            state: absent
+
+        - name: "Procs: Extract and install procs"
+          become: true
+          ansible.builtin.shell:
+            cmd: "unzip -o /tmp/procs.zip -d /tmp/procs-extract && install /tmp/procs-extract/procs /usr/local/bin/procs"
+
+        - name: "Procs: Cleanup"
+          ansible.builtin.file:
+            path: "{{ cleanup_item }}"
+            state: absent
+          loop:
+            - "/tmp/procs.zip"
+            - "/tmp/procs-extract"
+            - "/tmp/procs"
+          loop_control:
+            loop_var: cleanup_item
+
+  tags: better-shell-tools

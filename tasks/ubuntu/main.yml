@@ -1,12 +1,35 @@
 ---
-- name: "Install Tools from Package Manager"
-  ansible.builtin.include_tasks: "install-{{ item }}.yml"
-  with_items:
-   - eza
-   - gping
-   - ripgrep
+- name: "Install Tools with Package Manager"
+  become: true
+  ansible.builtin.apt:
+    name: "{{ wsl_env_extra_tools | dict2items | selectattr('key', 'in', better_shell_tools_list) | map(attribute='value') | list }}"
+    state: present
   tags: better-shell-tools
 
-- name: "Install More Tools"
-  ansible.builtin.include_tasks: extra-tools.yml
+- name: "Find existing install task files"
+  ansible.builtin.find:
+    paths: "{{ role_path }}/tasks/ubuntu"
+    patterns: "install-*.yml"
+  register: found_install_tasks
+  delegate_to: localhost
+  run_once: true
+  tags: better-shell-tools
+
+- name: "Set fact with available tools"
+  ansible.builtin.set_fact:
+    available_tools: "{{ found_install_tasks.files | map(attribute='path') | map('basename') | map('regex_replace', '^install-(.*)\\.yml$', '\\1') | list }}"
+  tags: better-shell-tools
+
+- name: "Install Tools with Custom Installers"
+  ansible.builtin.include_tasks: "install-{{ item }}.yml"
+  with_items: "{{ better_shell_tools_list | intersect(available_tools) }}"
+  tags: better-shell-tools
+
+- name: "Add Aliases to new tools"
+  ansible.builtin.template:
+    src: "wsl2/etc/bash_aliases.d/60-extra-tools.sh.j2"
+    dest: /etc/bash_aliases.d/60-extra-tools.sh
+    owner: root
+    group: root
+    mode: "0644"
   tags: better-shell-tools

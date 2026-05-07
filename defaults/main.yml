@@ -1,2 +1,14 @@
 ---
 better_shell_tools_users: []
+
+better_shell_tools_list:
+  - eza
+  - gping
+  - ripgrep
+  - rip2
+  - procs
+  - dust
+  - btop
+  - fd-find
+  - duf
+  - bat

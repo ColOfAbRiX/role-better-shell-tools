@@ -1,0 +1,57 @@
+---
+- name: "Check if dust is already installed"
+  ansible.builtin.stat:
+    path: /usr/local/bin/dust
+  register: dust_bin
+  tags: better-shell-tools
+
+- name: "Install dust"
+  when: not dust_bin.stat.exists
+  block:
+    - name: "Dust: Install from GitHub releases (Ubuntu/Debian)"
+      when: ansible_distribution in ["Debian", "Ubuntu"]
+      block:
+        - name: "Dust: Get latest release version"
+          ansible.builtin.uri:
+            url: https://api.github.com/repos/bootandy/dust/releases/latest
+            return_content: yes
+          register: dust_release
+          changed_when: false
+
+        - name: "Dust: Download dust binary"
+          become: true
+          ansible.builtin.get_url:
+            url: "https://github.com/bootandy/dust/releases/download/{{ dust_release.json.tag_name }}/dust-{{ dust_release.json.tag_name }}-x86_64-unknown-linux-musl.tar.gz"
+            dest: "/tmp/dust.tar.gz"
+            mode: "0644"
+
+        - name: "Dust: Create temp extraction directory"
+          become: true
+          ansible.builtin.file:
+            path: /tmp/dust-extract
+            state: directory
+            mode: "0755"
+
+        - name: "Dust: Remove old dust binary if exists"
+          become: true
+          ansible.builtin.file:
+            path: /usr/local/bin/dust
+            state: absent
+
+        - name: "Dust: Extract and install dust"
+          become: true
+          ansible.builtin.shell:
+            cmd: "tar -xzf /tmp/dust.tar.gz -C /tmp/dust-extract && install /tmp/dust-extract/dust-*/dust /usr/local/bin/dust"
+
+        - name: "Dust: Cleanup"
+          ansible.builtin.file:
+            path: "{{ cleanup_item }}"
+            state: absent
+          loop:
+            - "/tmp/dust.tar.gz"
+            - "/tmp/dust-extract"
+            - "/tmp/dust"
+          loop_control:
+            loop_var: cleanup_item
+
+  tags: better-shell-tools
