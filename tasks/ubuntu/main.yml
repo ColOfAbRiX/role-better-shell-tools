@@ -7,17 +7,16 @@
   tags: better-shell-tools
 
 - name: "Find existing install task files"
-  ansible.builtin.find:
-    paths: "{{ role_path }}/tasks/ubuntu"
-    patterns: "install-*.yml"
-  register: found_install_tasks
+  ansible.builtin.shell:
+    cmd: "find {{ role_path }}/tasks/ubuntu -maxdepth 1 -name 'install-*.yml' -type f -printf '%f\\n'"
+  register: find_result
   delegate_to: localhost
   run_once: true
+  changed_when: false
   tags: better-shell-tools
 
-- name: "Set fact with available tools"
-  ansible.builtin.set_fact:
-    available_tools: "{{ found_install_tasks.files | map(attribute='path') | map('basename') | map('regex_replace', '^install-(.*)\\.yml$', '\\1') | list }}"
+- ansible.builtin.set_fact:
+    available_tools: "{{ find_result.stdout_lines | map('regex_replace', '^install-(.*)\\.yml$', '\\1') | list }}"
   tags: better-shell-tools
 
 - name: "Install Tools with Custom Installers"
