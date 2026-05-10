@@ -1,0 +1,30 @@
+---
+- name: "Check if trippy is already installed"
+  ansible.builtin.stat:
+    path: /usr/local/bin/trippy
+  register: trippy_bin
+  tags: better-shell-tools
+
+- name: "Install trippy"
+  when: not trippy_bin.stat.exists
+  block:
+    - name: "Trippy: Get latest release version"
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/fujiapple852/trippy/releases/latest
+        return_content: yes
+      register: trippy_release
+      changed_when: false
+
+    - name: "Trippy: Download trippy binary"
+      become: true
+      ansible.builtin.get_url:
+        url: "https://github.com/fujiapple852/trippy/releases/download/{{ trippy_release.json.tag_name }}/trippy-{{ trippy_release.json.tag_name }}-x86_64-unknown-linux-gnu.tar.gz"
+        dest: "/tmp/trippy.tar.gz"
+        mode: "0644"
+
+    - name: "Trippy: Extract and install trippy"
+      become: true
+      ansible.builtin.shell:
+        cmd: "cd /tmp && tar -xzf trippy.tar.gz && install /tmp/trippy-*-x86_64-unknown-linux-gnu/trip /usr/local/bin/trippy && rm -rf /tmp/trippy*.tar.gz /tmp/trippy-*"
+
+  tags: better-shell-tools

@@ -1,0 +1,30 @@
+---
+- name: "Check if delta is already installed"
+  ansible.builtin.stat:
+    path: /usr/local/bin/delta
+  register: delta_bin
+  tags: better-shell-tools
+
+- name: "Install delta"
+  when: not delta_bin.stat.exists
+  block:
+    - name: "Delta: Get latest release version"
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/dandavison/delta/releases/latest
+        return_content: yes
+      register: delta_release
+      changed_when: false
+
+    - name: "Delta: Download delta binary"
+      become: true
+      ansible.builtin.get_url:
+        url: "https://github.com/dandavison/delta/releases/download/{{ delta_release.json.tag_name }}/delta-{{ delta_release.json.tag_name }}-x86_64-unknown-linux-gnu.tar.gz"
+        dest: "/tmp/delta.tar.gz"
+        mode: "0644"
+
+    - name: "Delta: Extract and install delta"
+      become: true
+      ansible.builtin.shell:
+        cmd: "cd /tmp && tar -xzf delta.tar.gz && install /tmp/delta-*-x86_64-unknown-linux-gnu/delta /usr/local/bin/delta && rm -rf /tmp/delta.tar.gz /tmp/delta-*"
+
+  tags: better-shell-tools
